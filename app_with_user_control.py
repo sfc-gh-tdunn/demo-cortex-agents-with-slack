@@ -1,7 +1,6 @@
 from typing import Any
 import os
 import re
-import threading
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 import snowflake.connector
@@ -26,58 +25,80 @@ DEBUG = True
 
 # Define whitelist of allowed users by their Slack user IDs
 ALLOWED_USERS = {
-    "U08PNH92YSC"
+    "U2QBZCGMT"
 }
 
+# Initializes app
 app = App(token=SLACK_BOT_TOKEN)
 messages = []
 
-planning_steps_data = {}
-
-@app.event("app_mention")
-def handle_app_mention(ack, event, say, client, body):
-    ack()
-    user_id = event.get('user')
-    if user_id not in ALLOWED_USERS:
-        say("🚫 Sorry, you are not authorized to use this bot.")
-        return
-
-    thread = threading.Thread(
-        target=handle_message_event,
-        kwargs={
-            "event": event,
-            "say": say,
-            "client": client,
-            "body": body
-        }
-    )
-    thread.start()
-
-@app.message(re.compile(".*"))
-def handle_direct_message(ack, message, say, client, body):
-    ack()
+@app.message("hello")
+def message_hello(message, say):
     user_id = message.get('user')
     if user_id not in ALLOWED_USERS:
         say("🚫 Sorry, you are not authorized to use this bot.")
         return
 
+    build = """
+Not a developer was stirring, all deep in the fight.
+The code was deployed in the pipelines with care,
+In hopes that the features would soon be there.
+
+And execs, so eager to see the results,
+Were prepping their speeches, avoiding the gulps.
+When, what to my wondering eyes should appear,
+But a slide-deck update, with a demo so clear!
+
+And we shouted out to developers,
+Let's launch this build live and avoid any crash!
+The demos they created, the videos they made,
+Were polished and ready, the hype never delayed.
+    """
+
+    say(build)
+    say(
+        text="Let's BUILD",
+        blocks=[
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f":snowflake: Let's BUILD!",
+                }
+            },
+        ]
+    )
+
+# Global storage for planning steps data
+planning_steps_data = {}
+
+@app.event("app_mention")
+def handle_app_mention(event, say, client, body):
+    user_id = event.get('user')
+    if user_id not in ALLOWED_USERS:
+        say("🚫 Sorry, you are not authorized to use this bot.")
+        return
+
+    handle_message_event(event, say, client, body)
+
+@app.message(re.compile(".*"))
+def handle_direct_message(message, say, client, body):
+    user_id = message.get('user')
+    if user_id not in ALLOWED_USERS:
+        say("🚫 Sorry, you are not authorized to use this bot.")
+        return
+
+    # Only respond to direct messages (not in channels unless mentioned)
     if message.get('channel_type') == 'im':
-        thread = threading.Thread(
-            target=handle_message_event,
-            kwargs={
-                "event": message,
-                "say": say,
-                "client": client,
-                "body": body
-            }
-        )
-        thread.start()
+        handle_message_event(message, say, client, body)
+
 def handle_message_event(event, say, client, body):
     try:
         user_message = event.get('text', '').strip()
         if not user_message:
             return
         
+        # Remove bot mention if present
         user_message = re.sub(r'<@\w+>', '', user_message).strip()
         
         if not user_message:
@@ -115,6 +136,7 @@ def handle_message_event(event, say, client, body):
         error_info = f"{type(e).__name__} at line {e.__traceback__.tb_lineno} of {__file__}: {e}"
         print(f"❌ Error in handle_message_event: {error_info}")
         say(f"❌ Sorry, there was an error processing your message: {str(e)}")
+
 @app.action("show_planning_details")
 def handle_planning_details_toggle(ack, body, say):
     ack()
@@ -278,6 +300,55 @@ def handle_planning_details_toggle(ack, body, say):
     except Exception as e:
         print(f"Error handling planning details toggle: {e}")
         say(f"❌ Error toggling planning details: {e}")
+
+@app.event("message")
+def handle_message_events(ack, body, say):
+    try:
+        ack()
+        user_id = body['event'].get('user') or body['event'].get('bot_id')
+        if user_id not in ALLOWED_USERS:
+            say("🚫 Sorry, you are not authorized to use this bot.")
+            return
+        
+        prompt = body['event']['text']
+        
+        CORTEX_APP.set_slack_say_function(say)
+        CORTEX_APP.set_slack_app(app, body['event']['channel'])
+        
+        say(
+            text="🚀 Starting Cortex Agent...",
+            blocks=[
+                {"type": "divider"},
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": ":snowflake: *Snowflake Cortex Agent* is processing your request...\n_You'll see real-time updates as the agent works!_",
+                    }
+                },
+                {"type": "divider"},
+            ]
+        )
+        
+        response = ask_agent(prompt, say)
+        
+        display_agent_response(response, say)
+        
+    except Exception as e:
+        error_info = f"{type(e).__name__} at line {e.__traceback__.tb_lineno} of {__file__}: {e}"
+        print(f"❌ Error in message handler: {error_info}")
+        say(
+            text="❌ Request failed",
+            blocks=[
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"❌ *Request Failed*\n``````"
+                    }
+                }
+            ]
+        )
 
 def smart_truncate(text, max_length=300, suffix="..."):
     """Smart truncation that preserves word and sentence boundaries."""

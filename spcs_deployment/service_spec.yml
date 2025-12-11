@@ -1,0 +1,27 @@
+spec:
+  containers:
+    - name: cortex-slack-bot
+      image: /<db_name>/<schema_name>/<repo_name>/cortex_slack_bot:latest
+      env:
+        # Pass Snowflake credentials/context directly to the container
+        # Note: In production, consider using Snowflake Secrets for tokens
+        ACCOUNT: "<your_snowflake_account>"
+        HOST: "<your_host>"
+        DEMO_USER: "<your_user>"
+        DEMO_USER_ROLE: "<your_role>"
+        WAREHOUSE: "<your_warehouse>"
+        AGENT_ENDPOINT: "cortex_search_service" # Example
+        
+        # Slack Tokens
+        SLACK_APP_TOKEN: "<xapp-...>"
+        SLACK_BOT_TOKEN: "<xoxb-...>"
+        PAT: "<your_pat_token>"
+
+      # Mount local directory if your app needs temporary storage (optional)
+      volumeMounts:
+        - name: app-storage
+          mountPath: /app/data
+
+  volumes:
+    - name: app-storage
+      source: local

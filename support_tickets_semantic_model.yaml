@@ -4,7 +4,7 @@ tables:
   - name: SUPPORT_TICKETS
     description: A logical table capturing support tickets data.
     base_table:
-      database: DASH_AGENT_SLACK
+      database: DEMO_CORTEX_SLACK
       schema: DATA
       table: SUPPORT_TICKETS
 
