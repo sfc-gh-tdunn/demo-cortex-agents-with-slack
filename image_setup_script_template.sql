@@ -38,10 +38,31 @@ CREATE COMPUTE POOL IF NOT EXISTS CORTEX_POOL
 -- 5. Create the Service
 -- Make sure you have pushed the docker image before running this!
 CREATE SERVICE CORTEX_SLACK_BOT_SERVICE
-  IN COMPUTE POOL CORTEX_POOL
-  FROM @CORTEX_REPO
-  SPEC_FILE = 'service_spec.yml'
-  EXTERNAL_ACCESS_INTEGRATIONS = (SLACK_ACCESS_INTEGRATION);
+  IN COMPUTE POOL CORTEX_APP_POOL
+  EXTERNAL_ACCESS_INTEGRATIONS = (SLACK_ACCESS_INTEGRATION)
+  FROM SPECIFICATION $$
+    spec:
+      containers:
+        - name: cortex-slack-bot
+          image: /<database-name>/apps/<image-repo-name>/cortex_slack_bot:latest
+          env:
+            # Update these values with your actual credentials
+            ACCOUNT: "<account-identifier>"
+            HOST: "<account-identifier>.snowflakecomputing.com"
+            DEMO_USER: "<username>"
+            DEMO_USER_ROLE: "<role-name>"
+            WAREHOUSE: "<warehouse>"
+            AGENT_ENDPOINT: "https://<account-identifier>.snowflakecomputing.com/api/v2/databases/<database-name>/schemas/<schema-name>/agents/<agent-name>:run"
+            SLACK_APP_TOKEN: "xapp-..."
+            SLACK_BOT_TOKEN: "xoxb-..."
+            PAT: "<ProgrammicAccessToken>"
+          volumeMounts:
+            - name: app-storage
+              mountPath: /app/data
+      volumes:
+        - name: app-storage
+          source: local
+  $$;
 
 -- 6. Check status
 -- SELECT SYSTEM$GET_SERVICE_STATUS('CORTEX_SLACK_BOT_SERVICE');
