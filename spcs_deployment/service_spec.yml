@@ -1,27 +1,29 @@
 spec:
   containers:
-    - name: cortex-slack-bot
-      image: /<db_name>/<schema_name>/<repo_name>/cortex_slack_bot:latest
+    - name: slack-cortex-bot
+      image: <YOUR_ORG>-<YOUR_ACCOUNT>.registry.snowflakecomputing.com/<DB>/<SCHEMA>/<REPO>/slack-bot:latest
+      
+      # Mount the OAuth token (This happens automatically, but good to know)
+      # The token is available at /snowflake/session/token
+      
       env:
-        # Pass Snowflake credentials/context directly to the container
-        # Note: In production, consider using Snowflake Secrets for tokens
-        ACCOUNT: "<your_snowflake_account>"
-        HOST: "<your_host>"
-        DEMO_USER: "<your_user>"
-        DEMO_USER_ROLE: "<your_role>"
-        WAREHOUSE: "<your_warehouse>"
-        AGENT_ENDPOINT: "cortex_search_service" # Example
+        # Pass non-secret config here
+        AGENT_ENDPOINT: "https://<your_cortex_endpoint>"
+        ALLOWED_USERS: "U123456,U987654" # Comma separated Slack User IDs
+        # Snowflake env vars are often injected automatically, but you can force them:
+        # SNOWFLAKE_WAREHOUSE: "MY_WH" 
         
-        # Slack Tokens
-        SLACK_APP_TOKEN: "<xapp-...>"
-        SLACK_BOT_TOKEN: "<xoxb-...>"
-        PAT: "<your_pat_token>"
-
-      # Mount local directory if your app needs temporary storage (optional)
-      volumeMounts:
-        - name: app-storage
-          mountPath: /app/data
-
-  volumes:
-    - name: app-storage
-      source: local
+      secrets:
+        # Map Snowflake secrets to Environment Variables
+        - snowflakeSecret: SLACK_APP_TOKEN_SECRET
+          secretEnv: SLACK_APP_TOKEN
+        - snowflakeSecret: SLACK_BOT_TOKEN_SECRET
+          secretEnv: SLACK_BOT_TOKEN
+          
+      resources:
+        requests:
+          memory: 1G
+          cpu: 0.5
+        limits:
+          memory: 2G
+          cpu: 1

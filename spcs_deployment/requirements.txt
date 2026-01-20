@@ -1,6 +1,7 @@
 slack_bolt
 snowflake
 snowflake-snowpark-python
+snowflake-connector-python
 snowflake-core
 requests
 pandas
